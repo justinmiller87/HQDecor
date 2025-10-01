@@ -413,7 +413,7 @@ export function setupInputForm() {
           listItem.innerHTML = `${total}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
           decorationList.appendChild(listItem);
 
-          if (['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
+          if (town.toLowerCase() !== 'evergarden' && ['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
             const hr = document.createElement('hr');
             decorationList.appendChild(hr);
           }
