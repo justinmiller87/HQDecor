@@ -2,6 +2,7 @@
 // Handles UI setup, user input, optimization, and import/export for decorations
 
 import { optimizeDecorations, optimizeDecorationsBalanced } from "./optimizer";
+import { calculateVarietyBonus, calculateTotalScore } from "./scoring";
 import decorations from "./decorations.json";
 
 // Utility: Sanitize a string for use as an HTML id
@@ -164,9 +165,7 @@ function gatherExportData() {
       Array.from(
         document.querySelectorAll<HTMLInputElement>(".town-checkbox:checked")
       ).map((checkbox) => checkbox.value),
-      decorationQuantities,
-      document.querySelector<HTMLInputElement>("#valhalla-only")?.checked ||
-        false
+      decorationQuantities
     );
     Object.entries(optimizationResults).forEach(([town, data]) => {
       results[town] = { decorations: data.decorations || [] };
@@ -198,7 +197,10 @@ export function setupInputForm() {
           <p><label><input type="checkbox" class="town-checkbox" value="northern1"> Northern Town 1</label>
           <label><input type="checkbox" class="town-checkbox" value="northern2"> Northern Town 2</label>
           <label><input type="checkbox" class="town-checkbox" value="northern3"> Northern Town 3</label></p>
-       
+          <p><label><input type="checkbox" class="town-checkbox" value="southern1"> Southern Town 1</label>
+          <label><input type="checkbox" class="town-checkbox" value="southern2"> Southern Town 2</label>
+          <label><input type="checkbox" class="town-checkbox" value="southern3"> Southern Town 3</label></p>
+
         </div>
       </div>
 
@@ -212,7 +214,6 @@ export function setupInputForm() {
 
       <div id="options-container">
         <h2>Options:</h2>
-        <p><label><input type="checkbox" id="valhalla-only"> Only place Valhalla items in the Evergarden</label></p>
         <p><button type="button" id="reset-values-bottom">Reset All Values</button></p>
       </div>
       <h2>Run Tool:</h2>
@@ -248,8 +249,6 @@ export function setupInputForm() {
 
   // Get form and option elements
   const form = document.querySelector<HTMLFormElement>("#decoration-form")!;
-  const valhallaOnlyCheckbox =
-    document.querySelector<HTMLInputElement>("#valhalla-only")!;
   const resetValuesTopButton =
     document.querySelector<HTMLButtonElement>("#reset-values-top")!;
   const resetValuesBottomButton = document.querySelector<HTMLButtonElement>(
@@ -312,61 +311,12 @@ export function setupInputForm() {
     if (selectedMethod === "balanced") {
       results = optimizeDecorationsBalanced(
         towns,
-        decorationQuantities,
-        valhallaOnlyCheckbox.checked
+        decorationQuantities
       );
     } else {
       results = optimizeDecorations(
         towns,
-        decorationQuantities,
-        valhallaOnlyCheckbox.checked
-      );
-    }
-
-    // Filter Evergarden to only Valhalla decorations if needed
-    if (towns.includes("evergarden")) {
-      const evergardenDecorations = results["evergarden"].decorations.filter(
-        (decoration: { name: string; quantity: number }) => {
-          const isValhalla = decorations.find(
-            (d: { name: string; category: string }) =>
-              d.name === decoration.name && d.category === "Valhalla"
-          );
-          if (!isValhalla) {
-            decorationQuantities[decoration.name] += decoration.quantity;
-          }
-          return isValhalla;
-        }
-      );
-
-      results["evergarden"].decorations = evergardenDecorations;
-
-      // Recalculate heart values for Evergarden
-      results["evergarden"].green = evergardenDecorations.reduce(
-        (sum: number, decoration: { name: string; quantity: number }) => {
-          const decorationData = decorations.find(
-            (d: { name: string; green: number }) => d.name === decoration.name
-          );
-          return sum + (decorationData?.green || 0) * decoration.quantity;
-        },
-        0
-      );
-      results["evergarden"].blue = evergardenDecorations.reduce(
-        (sum: number, decoration: { name: string; quantity: number }) => {
-          const decorationData = decorations.find(
-            (d: { name: string; blue: number }) => d.name === decoration.name
-          );
-          return sum + (decorationData?.blue || 0) * decoration.quantity;
-        },
-        0
-      );
-      results["evergarden"].red = evergardenDecorations.reduce(
-        (sum: number, decoration: { name: string; quantity: number }) => {
-          const decorationData = decorations.find(
-            (d: { name: string; red: number }) => d.name === decoration.name
-          );
-          return sum + (decorationData?.red || 0) * decoration.quantity;
-        },
-        0
+        decorationQuantities
       );
     }
 
@@ -383,6 +333,9 @@ export function setupInputForm() {
       northern2: "Northern Town 2",
       northern3: "Northern Town 3",
       evergarden: "Evergarden",
+      southern1: "Southern Town 1",
+      southern2: "Southern Town 2",
+      southern3: "Southern Town 3",
     };
 
     towns.forEach((town) => {
@@ -407,14 +360,30 @@ export function setupInputForm() {
       townHeader.textContent = `Results for ${townNames[town] || town}`;
       townSection.appendChild(townHeader);
 
-      // Show heart values for the town
-      const heartValues = document.createElement("p");
-      heartValues.innerHTML = `
-        <strong>Green:</strong> ${townResult.green} <span style="color: green;">&#x1F49A;</span><br>
-        <strong>Blue:</strong> ${townResult.blue} <span style="color: blue;">&#x1F499;</span><br>
-        <strong>Red:</strong> ${townResult.red} <span style="color: red;">&#x1F497;</span>
+      // Calculate and display detailed scores
+      const baseScore = Math.min(townResult.green, 1000) + Math.min(townResult.blue, 1000) + Math.min(townResult.red, 1000);
+      const varietyBonusPercentage = calculateVarietyBonus(townResult.green, townResult.blue, townResult.red);
+      const varietyBonusScore = baseScore * varietyBonusPercentage;
+      const overallScore = baseScore + varietyBonusScore;
+
+      const scoreDetails = document.createElement("div");
+      scoreDetails.style.textAlign = 'left';
+      scoreDetails.style.paddingLeft = '20%';
+
+
+      scoreDetails.innerHTML = `
+        <p>
+          <strong>Green:</strong> ${townResult.green} <span style="color: green;">&#x1F49A;</span> |
+          <strong>Blue:</strong> ${townResult.blue} <span style="color: blue;">&#x1F499;</span> |
+          <strong>Red:</strong> ${townResult.red} <span style="color: red;">&#x1F497;</span>
+        </p>
+        <p>
+          <strong>Base Score:</strong> ${baseScore.toFixed(0)}<br>
+          <strong>Variety Bonus:</strong> ${(varietyBonusPercentage * 100).toFixed(1)}% (+${varietyBonusScore.toFixed(0)} points)<br>
+          <strong>Overall Score:</strong> <strong>${overallScore.toFixed(0)}</strong>
+        </p>
       `;
-      townSection.appendChild(heartValues);
+      townSection.appendChild(scoreDetails);
 
       // List decorations used in the town
       const decorationList = document.createElement("ul");

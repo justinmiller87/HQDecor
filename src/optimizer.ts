@@ -2,12 +2,9 @@
 // Contains functions for distributing decorations across towns using different strategies
 
 import decorationsData from "./decorations.json";
-import decorations from "./decorations.json";
+import { calculateTotalScore } from "./scoring";
 
 // Type definitions for decorations and optimization results
-// Decoration: represents a single decoration's properties
-// TownResult: represents the result for a single town
-
 type Decoration = {
   name: string;
   category: string;
@@ -23,310 +20,167 @@ type TownResult = {
   decorations: { name: string; quantity: number }[];
 };
 
-// Maximum Optimization: Fills up one town at a time before moving to the next
+// --- Optimization Functions ---
+
+// Maximum Optimization: Fills up one town at a time, prioritizing Evergarden.
 export function optimizeDecorations(
   towns: string[],
-  decorationQuantities: Record<string, number>,
-  valhallaOnly: boolean
+  decorationQuantities: Record<string, number>
 ) {
   const results: Record<string, TownResult> = {};
 
-  // Initialize results for each town
   towns.forEach((town) => {
-    results[town] = {
-      green: 0,
-      blue: 0,
-      red: 0,
-      decorations: [],
-    };
+    results[town] = { green: 0, blue: 0, red: 0, decorations: [] };
   });
 
-  // Map decoration quantities to their respective data
-  const decorations = Object.entries(decorationQuantities)
-    .map(([name, quantity]) => {
-      const decorationData = decorationsData.find((d) => d.name === name);
-      return decorationData ? { ...decorationData, quantity } : null;
-    })
-    .filter(Boolean) as (Decoration & { quantity: number })[];
+  const decorationsWithQuantities = decorationsData.map(decoration => ({
+    ...decoration,
+    quantity: decorationQuantities[decoration.name] || 0,
+  }));
 
-  // Find specific decorations (Meadow and Snowflake)
-  const meadow = decorations.find((decoration) => decoration.name === "Meadow");
-  const snowflake = decorations.find((decoration) => decoration.name === "Snowflake");
-
-  if (valhallaOnly) {
-    // Filter decorations for Evergarden (Valhalla only) and other towns
-    const valhallaDecorations = decorations.filter(
-      (decoration) => decoration.category === "Valhalla"
-    );
-    const nonValhallaDecorations = decorations.filter(
-      (decoration) => decoration.category !== "Valhalla"
-    );
-
-    // Assign decorations to towns
-    towns.forEach((town) => {
-      const townResult = results[town];
-
-      // Determine applicable decorations based on town type
-      const applicableDecorations =
-        town === "evergarden" ? valhallaDecorations : nonValhallaDecorations;
-
-      // Sort decorations to optimize balance
-      applicableDecorations.sort((a, b) => {
-        const aBalance =
-          Math.abs(townResult.green + a.green - (townResult.blue + a.blue)) +
-          Math.abs(townResult.green + a.green - (townResult.red + a.red)) +
-          Math.abs(townResult.blue + a.blue - (townResult.red + a.red));
-        const bBalance =
-          Math.abs(townResult.green + b.green - (townResult.blue + b.blue)) +
-          Math.abs(townResult.green + b.green - (townResult.red + b.red)) +
-          Math.abs(townResult.blue + b.blue - (townResult.red + b.red));
-        return aBalance - bBalance; // Sort by balance improvement
-      });
-
-      // Assign decorations to the town while respecting limits
-      applicableDecorations.forEach((decoration) => {
-        while (decoration.quantity > 0) {
-          const newGreen = townResult.green + decoration.green;
-          const newBlue = townResult.blue + decoration.blue;
-          const newRed = townResult.red + decoration.red;
-
-          // Stop assigning decorations if any total exceeds 1000 (Valhalla-only mode)
-          if (newGreen > 1000 || newBlue > 1000 || newRed > 1000) {
-            break;
-          }
-
-          // Update town totals and add decoration
-          townResult.green = newGreen;
-          townResult.blue = newBlue;
-          townResult.red = newRed;
-          townResult.decorations.push({ name: decoration.name, quantity: 1 });
-          decoration.quantity--;
-        }
-      });
-
-      // Check for Meadow condition (green or red near 1000)
-      if (
-        (townResult.green >= 997 && townResult.green <= 999) &&
-        meadow &&
-        meadow.quantity > 0
-      ) {
-        townResult.green += meadow.green;
-        townResult.blue += meadow.blue;
-        townResult.red += meadow.red;
-        townResult.decorations.push({ name: "Meadow", quantity: 1 });
-        meadow.quantity--;
-      }
-
-      if (
-        (townResult.red >= 997 && townResult.red <= 999) &&
-        meadow &&
-        meadow.quantity > 0
-      ) {
-        townResult.green += meadow.green;
-        townResult.blue += meadow.blue;
-        townResult.red += meadow.red;
-        townResult.decorations.push({ name: "Meadow", quantity: 1 });
-        meadow.quantity--;
-      }
-
-      // Check for Snowflake condition (blue near 1000)
-      if (
-        (townResult.blue >= 996 && townResult.blue <= 999) &&
-        snowflake &&
-        snowflake.quantity > 0
-      ) {
-        townResult.green += snowflake.green;
-        townResult.blue += snowflake.blue;
-        townResult.red += snowflake.red;
-        townResult.decorations.push({ name: "Snowflake", quantity: 1 });
-        snowflake.quantity--;
-      }
-    });
-  } else {
-    // Original logic for distributing decorations
-    towns.forEach((town) => {
-      const townResult = results[town];
-
-      // Sort decorations to optimize balance
-      decorations.sort((a, b) => {
-        const aBalance =
-          Math.abs(townResult.green + a.green - (townResult.blue + a.blue)) +
-          Math.abs(townResult.green + a.green - (townResult.red + a.red)) +
-          Math.abs(townResult.blue + a.blue - (townResult.red + a.red));
-        const bBalance =
-          Math.abs(townResult.green + b.green - (townResult.blue + b.blue)) +
-          Math.abs(townResult.green + b.green - (townResult.red + b.red)) +
-          Math.abs(townResult.blue + b.blue - (townResult.red + b.red));
-        return aBalance - bBalance; // Sort by balance improvement
-      });
-
-      // Assign decorations to the town while respecting limits
-      decorations.forEach((decoration) => {
-        while (
-          decoration.quantity > 0 &&
-          townResult.green + decoration.green <= 1000 &&
-          townResult.blue + decoration.blue <= 1000 &&
-          townResult.red + decoration.red <= 1000
-        ) {
-          townResult.green += decoration.green;
-          townResult.blue += decoration.blue;
-          townResult.red += decoration.red;
-          townResult.decorations.push({ name: decoration.name, quantity: 1 });
-          decoration.quantity--;
-        }
-      });
-
-      // Check for Meadow condition (green or red near 1000)
-      if (
-        (townResult.green >= 997 && townResult.green <= 999) &&
-        meadow &&
-        meadow.quantity > 0
-      ) {
-        townResult.green += meadow.green;
-        townResult.blue += meadow.blue;
-        townResult.red += meadow.red;
-        townResult.decorations.push({ name: "Meadow", quantity: 1 });
-        meadow.quantity--;
-      }
-
-      if (
-        (townResult.red >= 997 && townResult.red <= 999) &&
-        meadow &&
-        meadow.quantity > 0
-      ) {
-        townResult.green += meadow.green;
-        townResult.blue += meadow.blue;
-        townResult.red += meadow.red;
-        townResult.decorations.push({ name: "Meadow", quantity: 1 });
-        meadow.quantity--;
-      }
-
-      // Check for Snowflake condition (blue near 1000)
-      if (
-        (townResult.blue >= 996 && townResult.blue <= 999) &&
-        snowflake &&
-        snowflake.quantity > 0
-      ) {
-        townResult.green += snowflake.green;
-        townResult.blue += snowflake.blue;
-        townResult.red += snowflake.red;
-        townResult.decorations.push({ name: "Snowflake", quantity: 1 });
-        snowflake.quantity--;
-      }
-    });
+  const processOrder = [...towns];
+  if (processOrder.includes("evergarden")) {
+    const index = processOrder.indexOf("evergarden");
+    processOrder.splice(index, 1);
+    processOrder.unshift("evergarden");
   }
 
-  return results;
-}
+  processOrder.forEach((town) => {
+    const townResult = results[town];
+    const isEvergarden = town.toLowerCase() === "evergarden";
 
-// Balanced Optimization: Distributes decorations as evenly as possible across all towns
-// - Respects max 1000 per color per town
-// - If valhallaOnly is true, only Valhalla decorations are used in Evergarden
-// - Otherwise, Valhalla decorations can be used in any town
-export function optimizeDecorationsBalanced(
-  towns: string[],
-  decorationQuantities: Record<string, number>,
-  valhallaOnly: boolean
-): Record<string, any> {
-  const results: Record<string, any> = {};
+    decorationsWithQuantities.sort((a, b) => (b.green + b.blue + b.red) - (a.green + a.blue + a.red));
 
-  // Initialize results for each town
-  towns.forEach((town) => {
-    results[town] = {
-      decorations: [],
-      green: 0,
-      blue: 0,
-      red: 0,
-    };
-  });
-
-  // Separate Valhalla decorations if the option is enabled
-  const valhallaDecorations = Object.entries(decorationQuantities).filter(
-    ([name]) => {
-      const isValhalla = decorations.find(
-        (d: { name: string; category: string }) =>
-          d.name === name && d.category === "Valhalla"
-      );
-      return isValhalla;
-    }
-  );
-
-  const nonValhallaDecorations = Object.entries(decorationQuantities).filter(
-    ([name, quantity]) => {
-      const isValhalla = decorations.find(
-        (d: { name: string; category: string }) =>
-          d.name === name && d.category === "Valhalla"
-      );
-      return !isValhalla && quantity > 0;
-    }
-  );
-
-  // Distribute Valhalla decorations to Evergarden if the option is enabled
-  if (valhallaOnly && towns.includes("evergarden")) {
-    valhallaDecorations.forEach(([name, quantity]) => {
-      const decoration = decorations.find(
-        (d: { name: string }) => d.name === name
-      );
-
-      while (quantity > 0) {
-        const evergardenResult = results["evergarden"];
-
-        if (
-          decoration &&
-          evergardenResult.green + decoration.green <= 1000 &&
-          evergardenResult.blue + decoration.blue <= 1000 &&
-          evergardenResult.red + decoration.red <= 1000
-        ) {
-          evergardenResult.decorations.push({ name, quantity: 1 });
-          evergardenResult.green += decoration.green;
-          evergardenResult.blue += decoration.blue;
-          evergardenResult.red += decoration.red;
-          quantity--;
-          decorationQuantities[name]--; // Update global pool
-        } else {
-          break;
-        }
-      }
-    });
-  }
-
-  // Combine Valhalla and non-Valhalla decorations if the option is disabled
-  const allDecorations = valhallaOnly
-    ? nonValhallaDecorations
-    : [...valhallaDecorations, ...nonValhallaDecorations];
-
-  // Distribute decorations across all towns
-  let townIndex = 0;
-  allDecorations.forEach(([name, quantity]) => {
-    while (quantity > 0) {
-      const town = towns[townIndex];
-      if (town === "evergarden" && valhallaOnly) {
-        townIndex = (townIndex + 1) % towns.length;
-        continue;
+    decorationsWithQuantities.forEach((decoration) => {
+      if (isEvergarden && (decoration.name === "Eiffel Tower" || decoration.category !== "Valhalla")) {
+        return;
       }
 
-      const townResult = results[town];
-      const decoration = decorations.find(
-        (d: { name: string }) => d.name === name
-      );
-
-      if (
-        decoration &&
+      while (
+        decoration.quantity > 0 &&
         townResult.green + decoration.green <= 1000 &&
         townResult.blue + decoration.blue <= 1000 &&
         townResult.red + decoration.red <= 1000
       ) {
-        townResult.decorations.push({ name, quantity: 1 });
         townResult.green += decoration.green;
         townResult.blue += decoration.blue;
         townResult.red += decoration.red;
-        quantity--;
-        decorationQuantities[name]--; // Update global pool
-      }
 
-      townIndex = (townIndex + 1) % towns.length; // Rotate to the next town
-    }
+        const existingDeco = townResult.decorations.find(d => d.name === decoration.name);
+        if (existingDeco) {
+          existingDeco.quantity++;
+        } else {
+          townResult.decorations.push({ name: decoration.name, quantity: 1 });
+        }
+        decoration.quantity--;
+      }
+    });
   });
+
+  return results;
+}
+
+// Balanced Optimization: A greedy algorithm that maximizes the Total Score at each step.
+export function optimizeDecorationsBalanced(
+  towns: string[],
+  decorationQuantities: Record<string, number>
+): Record<string, any> {
+  const results: Record<string, any> = {};
+  const mutableQuantities = { ...decorationQuantities };
+
+  towns.forEach((town) => {
+    results[town] = { decorations: [], green: 0, blue: 0, red: 0 };
+  });
+
+  // Step 1: Prioritize and process Evergarden if it is selected
+  if (towns.includes("evergarden")) {
+    const evergardenResult = results["evergarden"];
+    const evergardenAllowedDecorations = decorationsData.filter(d =>
+        d.category === 'Valhalla' && d.name !== 'Eiffel Tower'
+    );
+
+    while (true) {
+        let bestPlacement: { decoration: Decoration; scoreIncrease: number } | null = null;
+        const currentScore = calculateTotalScore(evergardenResult.green, evergardenResult.blue, evergardenResult.red);
+
+        for (const decoration of evergardenAllowedDecorations) {
+            if (mutableQuantities[decoration.name] > 0) {
+                const newGreen = evergardenResult.green + decoration.green;
+                const newBlue = evergardenResult.blue + decoration.blue;
+                const newRed = evergardenResult.red + decoration.red;
+                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+                const scoreIncrease = newScore - currentScore;
+
+                if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
+                    bestPlacement = { decoration, scoreIncrease };
+                }
+            }
+        }
+
+        if (bestPlacement && bestPlacement.scoreIncrease > 0) {
+            const { decoration } = bestPlacement;
+            evergardenResult.green += decoration.green;
+            evergardenResult.blue += decoration.blue;
+            evergardenResult.red += decoration.red;
+
+            const existingDeco = evergardenResult.decorations.find((d: any) => d.name === decoration.name);
+            if (existingDeco) {
+                existingDeco.quantity++;
+            } else {
+                evergardenResult.decorations.push({ name: decoration.name, quantity: 1 });
+            }
+            mutableQuantities[decoration.name]--;
+        } else {
+            break; // No more beneficial placements for Evergarden
+        }
+    }
+  }
+
+  // Step 2: Process the remaining towns with all remaining decorations
+  const otherTowns = towns.filter(t => t !== "evergarden");
+  if (otherTowns.length > 0) {
+    while (true) {
+        let bestPlacement: { town: string; decoration: Decoration; scoreIncrease: number } | null = null;
+
+        const availableDecoList = decorationsData.filter(d => mutableQuantities[d.name] > 0);
+        if (availableDecoList.length === 0) break;
+
+        for (const town of otherTowns) {
+            const townResult = results[town];
+            const currentScore = calculateTotalScore(townResult.green, townResult.blue, townResult.red);
+
+            for (const decoration of availableDecoList) {
+                const newGreen = townResult.green + decoration.green;
+                const newBlue = townResult.blue + decoration.blue;
+                const newRed = townResult.red + decoration.red;
+                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+                const scoreIncrease = newScore - currentScore;
+
+                if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
+                    bestPlacement = { town, decoration, scoreIncrease };
+                }
+            }
+        }
+
+        if (bestPlacement && bestPlacement.scoreIncrease > 0) {
+            const { town, decoration } = bestPlacement;
+            const townResult = results[town];
+            townResult.green += decoration.green;
+            townResult.blue += decoration.blue;
+            townResult.red += decoration.red;
+
+            const existingDeco = townResult.decorations.find((d: any) => d.name === decoration.name);
+            if (existingDeco) {
+                existingDeco.quantity++;
+            } else {
+                townResult.decorations.push({ name: decoration.name, quantity: 1 });
+            }
+            mutableQuantities[decoration.name]--;
+        } else {
+            break; // No more beneficial placements found for any other town
+        }
+    }
+  }
 
   return results;
 }

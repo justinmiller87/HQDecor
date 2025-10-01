@@ -166,5 +166,26 @@
     "green": 7,
     "blue": 7,
     "red": 7
+  },
+  {
+    "name": "Temple",
+    "category": "Omega",
+    "green": 0,
+    "blue": 11,
+    "red": 11
+  },
+  {
+    "name": "Golden Temple",
+    "category": "Omega",
+    "green": 11,
+    "blue": 11,
+    "red": 0
+  },
+  {
+    "name": "Eiffel Tower",
+    "category": "Omega",
+    "green": 100,
+    "blue": 100,
+    "red": 100
   }
 ]
