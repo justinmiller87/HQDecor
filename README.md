@@ -76,7 +76,7 @@ npm run build
 
 For questions or suggestions, feel free to reach out:
 
-- **Discord**: HomeQuest server (@Omaha3DPrints)
+- **Discord**: HomeQuest server (@professormiller79)
 - **Reddit**: [MetaphoricMenagerie](https://www.reddit.com/user/MetaphoricMenagerie)
 
 We welcome feedback and contributions to improve the tool!
