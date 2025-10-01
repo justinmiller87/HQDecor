@@ -2,7 +2,7 @@
 // Handles UI setup, user input, optimization, and import/export for decorations
 
 import { optimizeDecorations, optimizeDecorationsBalanced } from "./optimizer";
-import { calculateVarietyBonus, calculateTotalScore } from "./scoring";
+import { calculateVarietyBonus } from "./scoring";
 import decorations from "./decorations.json";
 
 // Utility: Sanitize a string for use as an HTML id
