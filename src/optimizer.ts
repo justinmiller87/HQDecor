@@ -77,6 +77,29 @@ export function optimizeDecorations(
     });
   });
 
+  // Post-process to include all decorations, with zero quantity if not present
+  towns.forEach((town) => {
+    const townResult = results[town];
+    const isEvergarden = town.toLowerCase() === "evergarden";
+
+    const allDecorations = decorationsData
+      .filter(decoration => {
+        if (isEvergarden) {
+          return decoration.category === 'Valhalla';
+        }
+        return true; // All decorations for other towns
+      })
+      .map(decoration => {
+        const existingDeco = townResult.decorations.find(d => d.name === decoration.name);
+        return {
+          name: decoration.name,
+          quantity: existingDeco ? existingDeco.quantity : 0,
+        };
+      });
+
+    townResult.decorations = allDecorations;
+  });
+
   return results;
 }
 
@@ -181,6 +204,29 @@ export function optimizeDecorationsBalanced(
         }
     }
   }
+
+  // Post-process to include all decorations, with zero quantity if not present
+  towns.forEach((town) => {
+    const townResult = results[town];
+    const isEvergarden = town.toLowerCase() === "evergarden";
+
+    const allDecorations = decorationsData
+      .filter(decoration => {
+        if (isEvergarden) {
+          return decoration.category === 'Valhalla';
+        }
+        return true; // All decorations for other towns
+      })
+      .map(decoration => {
+        const existingDeco = townResult.decorations.find((d: any) => d.name === decoration.name);
+        return {
+          name: decoration.name,
+          quantity: existingDeco ? existingDeco.quantity : 0,
+        };
+      });
+
+    townResult.decorations = allDecorations;
+  });
 
   return results;
 }
