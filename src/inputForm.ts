@@ -363,7 +363,7 @@ export function setupInputForm() {
       // Calculate and display detailed scores
       const baseScore = Math.min(townResult.green, 1000) + Math.min(townResult.blue, 1000) + Math.min(townResult.red, 1000);
       const varietyBonusPercentage = calculateVarietyBonus(townResult.green, townResult.blue, townResult.red);
-      const varietyBonusScore = Math.min(1000, baseScore * varietyBonusPercentage);
+      const varietyBonusScore = baseScore * varietyBonusPercentage;
       const overallScore = baseScore + varietyBonusScore;
 
       const scoreDetails = document.createElement("div");

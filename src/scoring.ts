@@ -19,7 +19,7 @@ export function calculateTotalScore(green: number, blue: number, red: number): n
   // Base score is capped at 1000 per color.
   const baseScore = Math.min(green, 1000) + Math.min(blue, 1000) + Math.min(red, 1000);
   const varietyBonusPercentage = calculateVarietyBonus(green, blue, red);
-  const varietyBonusScore = Math.min(1000, baseScore * varietyBonusPercentage);
+  const varietyBonusScore = baseScore * varietyBonusPercentage;
   const totalScore = baseScore + varietyBonusScore;
   return totalScore;
 }
