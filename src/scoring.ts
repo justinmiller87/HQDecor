@@ -1,8 +1,8 @@
 // --- Scoring Helper Functions ---
 
-// Calculates the variety bonus based on the balance of uncapped heart values.
+// Calculates the variety bonus based on the balance of heart values, capped at 1000.
 export function calculateVarietyBonus(green: number, blue: number, red: number): number {
-  const hearts = [green, blue, red];
+  const hearts = [Math.min(green, 1000), Math.min(blue, 1000), Math.min(red, 1000)];
   const sum = hearts.reduce((a, b) => a + b, 0);
   if (sum === 0) return 0;
 
@@ -18,7 +18,8 @@ export function calculateVarietyBonus(green: number, blue: number, red: number):
 export function calculateTotalScore(green: number, blue: number, red: number): number {
   // Base score is capped at 1000 per color.
   const baseScore = Math.min(green, 1000) + Math.min(blue, 1000) + Math.min(red, 1000);
-  const varietyBonus = calculateVarietyBonus(green, blue, red);
-  const totalScore = baseScore + (baseScore * varietyBonus);
+  const varietyBonusPercentage = calculateVarietyBonus(green, blue, red);
+  const varietyBonusScore = Math.min(1000, baseScore * varietyBonusPercentage);
+  const totalScore = baseScore + varietyBonusScore;
   return totalScore;
 }

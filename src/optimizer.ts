@@ -49,32 +49,49 @@ export function optimizeDecorations(
     const townResult = results[town];
     const isEvergarden = town.toLowerCase() === "evergarden";
 
-    decorationsWithQuantities.sort((a, b) => (b.green + b.blue + b.red) - (a.green + a.blue + a.red));
+    // Loop until the town's hearts are all at or above 1000
+    while (townResult.green < 1000 || townResult.blue < 1000 || townResult.red < 1000) {
+      let bestDecoration: (Decoration & { quantity: number }) | null = null;
+      let maxScore = -1;
 
-    decorationsWithQuantities.forEach((decoration) => {
-      if (isEvergarden && (decoration.category !== "Valhalla")) {
-        return;
-      }
+      // Find the best decoration to add in this step
+      for (const decoration of decorationsWithQuantities) {
+        if (decoration.quantity <= 0) continue;
+        if (isEvergarden && decoration.category !== "Valhalla") continue;
 
-      while (
-        decoration.quantity > 0 &&
-        townResult.green + decoration.green <= 1000 &&
-        townResult.blue + decoration.blue <= 1000 &&
-        townResult.red + decoration.red <= 1000
-      ) {
-        townResult.green += decoration.green;
-        townResult.blue += decoration.blue;
-        townResult.red += decoration.red;
+        // Calculate a "need" for each color, giving more weight to lower values.
+        const greenNeed = Math.max(0, 1000 - townResult.green);
+        const blueNeed = Math.max(0, 1000 - townResult.blue);
+        const redNeed = Math.max(0, 1000 - townResult.red);
 
-        const existingDeco = townResult.decorations.find(d => d.name === decoration.name);
-        if (existingDeco) {
-          existingDeco.quantity++;
-        } else {
-          townResult.decorations.push({ name: decoration.name, quantity: 1 });
+        // Score is the weighted sum of the decoration's contribution to the needed hearts.
+        const score = (decoration.green * greenNeed) + (decoration.blue * blueNeed) + (decoration.red * redNeed);
+
+        // We want the decoration that gives the most points to the needed colors
+        if (score > maxScore) {
+          maxScore = score;
+          bestDecoration = decoration;
         }
-        decoration.quantity--;
       }
-    });
+
+      // If no suitable decoration is found (e.g., no more decorations, or no decoration helps), break the loop
+      if (!bestDecoration || maxScore === 0) {
+        break;
+      }
+
+      // Add the best decoration found
+      townResult.green += bestDecoration.green;
+      townResult.blue += bestDecoration.blue;
+      townResult.red += bestDecoration.red;
+
+      const existingDeco = townResult.decorations.find(d => d.name === bestDecoration!.name);
+      if (existingDeco) {
+        existingDeco.quantity++;
+      } else {
+        townResult.decorations.push({ name: bestDecoration.name, quantity: 1 });
+      }
+      bestDecoration.quantity--;
+    }
   });
 
   // Post-process to include all decorations, with zero quantity if not present
