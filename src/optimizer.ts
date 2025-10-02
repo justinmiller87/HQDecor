@@ -52,7 +52,7 @@ export function optimizeDecorations(
     decorationsWithQuantities.sort((a, b) => (b.green + b.blue + b.red) - (a.green + a.blue + a.red));
 
     decorationsWithQuantities.forEach((decoration) => {
-      if (isEvergarden && (decoration.name === "Eiffel Tower" || decoration.category !== "Valhalla")) {
+      if (isEvergarden && (decoration.category !== "Valhalla")) {
         return;
       }
 
@@ -119,7 +119,7 @@ export function optimizeDecorationsBalanced(
   if (towns.includes("evergarden")) {
     const evergardenResult = results["evergarden"];
     const evergardenAllowedDecorations = decorationsData.filter(d =>
-        d.category === 'Valhalla' && d.name !== 'Eiffel Tower'
+        d.category === 'Valhalla'
     );
 
     while (true) {
