@@ -121,17 +121,18 @@ export function optimizeDecorationsBalanced(
     const evergardenAllowedDecorations = decorationsData.filter(d =>
         d.category === 'Valhalla'
     );
+    const evergardenCaps = { green: 400, blue: 395, red: 394 };
 
     while (true) {
         let bestPlacement: { decoration: Decoration; scoreIncrease: number } | null = null;
-        const currentScore = calculateTotalScore(evergardenResult.green, evergardenResult.blue, evergardenResult.red);
+        const currentScore = calculateTotalScore(evergardenResult.green, evergardenResult.blue, evergardenResult.red, evergardenCaps).totalScore;
 
         for (const decoration of evergardenAllowedDecorations) {
             if (mutableQuantities[decoration.name] > 0) {
                 const newGreen = evergardenResult.green + decoration.green;
                 const newBlue = evergardenResult.blue + decoration.blue;
                 const newRed = evergardenResult.red + decoration.red;
-                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+                const newScore = calculateTotalScore(newGreen, newBlue, newRed, evergardenCaps).totalScore;
                 const scoreIncrease = newScore - currentScore;
 
                 if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
@@ -170,13 +171,13 @@ export function optimizeDecorationsBalanced(
 
         for (const town of otherTowns) {
             const townResult = results[town];
-            const currentScore = calculateTotalScore(townResult.green, townResult.blue, townResult.red);
+            const currentScore = calculateTotalScore(townResult.green, townResult.blue, townResult.red).totalScore;
 
             for (const decoration of availableDecoList) {
                 const newGreen = townResult.green + decoration.green;
                 const newBlue = townResult.blue + decoration.blue;
                 const newRed = townResult.red + decoration.red;
-                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+                const newScore = calculateTotalScore(newGreen, newBlue, newRed).totalScore;
                 const scoreIncrease = newScore - currentScore;
 
                 if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {

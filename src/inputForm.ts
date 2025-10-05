@@ -2,7 +2,7 @@
 // Handles UI setup, user input, optimization, and import/export for decorations
 
 import { optimizeDecorations, optimizeDecorationsBalanced } from "./optimizer";
-import { calculateVarietyBonus } from "./scoring";
+import { calculateTotalScore } from "./scoring";
 import decorations from "./decorations.json";
 
 // Utility: Sanitize a string for use as an HTML id
@@ -320,170 +320,7 @@ export function setupInputForm() {
       );
     }
 
-    // Render results for each town
-    const resultsDiv = document.querySelector<HTMLDivElement>("#results")!;
-    resultsDiv.innerHTML = "";
-
-    const townNames: Record<string, string> = {
-      town1: "Town 1",
-      town2: "Town 2",
-      town3: "Town 3",
-      town4: "Town 4",
-      northern1: "Northern Town 1",
-      northern2: "Northern Town 2",
-      northern3: "Northern Town 3",
-      evergarden: "Evergarden",
-      southern1: "Southern Town 1",
-      southern2: "Southern Town 2",
-      southern3: "Southern Town 3",
-    };
-
-    towns.forEach((town) => {
-      const townResult = results[town];
-
-      // Skip towns with no decorations used
-      if (
-        !townResult ||
-        (townResult.green === 0 &&
-          townResult.blue === 0 &&
-          townResult.red === 0 &&
-          (!townResult.decorations || townResult.decorations.length === 0))
-      ) {
-        return;
-      }
-
-      // Create section for each town's results
-      const townSection = document.createElement("div");
-      townSection.className = "town-result";
-
-      const townHeader = document.createElement("h3");
-      townHeader.textContent = `Results for ${townNames[town] || town}`;
-      townSection.appendChild(townHeader);
-
-      // Calculate and display detailed scores
-      const baseScore = Math.min(townResult.green, 1000) + Math.min(townResult.blue, 1000) + Math.min(townResult.red, 1000);
-      const varietyBonusPercentage = calculateVarietyBonus(townResult.green, townResult.blue, townResult.red);
-      const varietyBonusScore = baseScore * varietyBonusPercentage;
-      const overallScore = baseScore + varietyBonusScore;
-
-      const scoreDetails = document.createElement("div");
-      scoreDetails.style.textAlign = 'left';
-      scoreDetails.style.paddingLeft = '20%';
-
-
-      scoreDetails.innerHTML = `
-        <p>
-          <strong>Green:</strong> ${townResult.green} <span style="color: green;">&#x1F49A;</span> |
-          <strong>Blue:</strong> ${townResult.blue} <span style="color: blue;">&#x1F499;</span> |
-          <strong>Red:</strong> ${townResult.red} <span style="color: red;">&#x1F497;</span>
-        </p>
-        <p>
-          <strong>Base Score:</strong> ${baseScore.toFixed(0)}<br>
-          <strong>Variety Bonus:</strong> ${(varietyBonusPercentage * 100).toFixed(1)}% (+${varietyBonusScore.toFixed(0)} points)<br>
-          <strong>Overall Score:</strong> <strong>${overallScore.toFixed(0)}</strong>
-        </p>
-      `;
-      townSection.appendChild(scoreDetails);
-
-      // List decorations used in the town
-      const decorationList = document.createElement("ul");
-      const decorationTotals: Record<string, number> = {};
-
-      townResult.decorations.forEach(
-        (decoration: { name: string; quantity: number }) => {
-          if (!decorationTotals[decoration.name]) {
-            decorationTotals[decoration.name] = 0;
-          }
-          decorationTotals[decoration.name] += decoration.quantity;
-        }
-      );
-
-      Object.entries(decorationTotals)
-        .sort(([nameA], [nameB]) => {
-          const inputOrder = Object.keys(decorationQuantities);
-          return inputOrder.indexOf(nameA) - inputOrder.indexOf(nameB);
-        })
-        .forEach(([name, total]) => {
-          const decoration = decorations.find((d) => d.name === name);
-          const greenTotal = (decoration?.green || 0) * total;
-          const blueTotal = (decoration?.blue || 0) * total;
-          const redTotal = (decoration?.red || 0) * total;
-
-          const listItem = document.createElement("li");
-          listItem.innerHTML = `${total}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
-          decorationList.appendChild(listItem);
-
-          if (town.toLowerCase() !== 'evergarden' && ['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
-            const hr = document.createElement('hr');
-            decorationList.appendChild(hr);
-          }
-        });
-
-      townSection.appendChild(decorationList);
-      resultsDiv.appendChild(townSection);
-    });
-
-    // Show unused decorations
-    const unusedDecorations = decorations
-      .map(
-        (decoration: {
-          name: string;
-          green: number;
-          blue: number;
-          red: number;
-        }) => {
-          const usedQuantity = Object.values(results)
-            .flatMap(
-              (town: { decorations: { name: string; quantity: number }[] }) =>
-                town.decorations.filter(
-                  (d: { name: string }) => d.name === decoration.name
-                )
-            )
-            .reduce(
-              (sum: number, d: { quantity: number }) => sum + d.quantity,
-              0
-            );
-          const totalQuantity = decorationQuantities[decoration.name] || 0;
-          const unusedQuantity = totalQuantity - usedQuantity;
-          return { ...decoration, unusedQuantity };
-        }
-      )
-      .filter(
-        (decoration: { unusedQuantity: number }) =>
-          decoration.unusedQuantity > 0
-      );
-
-    if (unusedDecorations.length > 0) {
-      const unusedSection = document.createElement("div");
-      unusedSection.className = "unused-decorations";
-
-      const unusedHeader = document.createElement("h3");
-      unusedHeader.textContent = "Unused Decorations:";
-      unusedSection.appendChild(unusedHeader);
-
-      const unusedList = document.createElement("ul");
-      unusedDecorations.forEach(
-        ({ name, green, blue, red, unusedQuantity }) => {
-          const listItem = document.createElement("li");
-          listItem.innerHTML = `${unusedQuantity}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${
-            green * unusedQuantity
-          }, <span style='color: blue;'>&#x1F499;</span> ${
-            blue * unusedQuantity
-          }, <span style='color: red;'>&#x1F497;</span> ${
-            red * unusedQuantity
-          })`;
-          unusedList.appendChild(listItem);
-
-          if (['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
-            const hr = document.createElement('hr');
-            unusedList.appendChild(hr);
-          }
-        }
-      );
-
-      unusedSection.appendChild(unusedList);
-      resultsDiv.appendChild(unusedSection);
-    }
+    renderResults(results, towns, decorationQuantities, selectedMethod);
   });
 
   // Dynamically render all decoration input fields
@@ -583,4 +420,170 @@ export function setupInputForm() {
     };
     fileInput.click();
   });
+}
+
+function renderResults(
+  results: Record<string, any>,
+  towns: string[],
+  decorationQuantities: Record<string, number>,
+  optimizationMethod: string
+) {
+  const resultsDiv = document.querySelector<HTMLDivElement>("#results")!;
+  resultsDiv.innerHTML = "";
+
+  const townNames: Record<string, string> = {
+    town1: "Town 1",
+    town2: "Town 2",
+    town3: "Town 3",
+    town4: "Town 4",
+    northern1: "Northern Town 1",
+    northern2: "Northern Town 2",
+    northern3: "Northern Town 3",
+    evergarden: "Evergarden",
+    southern1: "Southern Town 1",
+    southern2: "Southern Town 2",
+    southern3: "Southern Town 3",
+  };
+
+  towns.forEach((town) => {
+    const townResult = results[town];
+
+    if (
+      !townResult ||
+      (townResult.green === 0 &&
+        townResult.blue === 0 &&
+        townResult.red === 0 &&
+        (!townResult.decorations || townResult.decorations.length === 0))
+    ) {
+      return;
+    }
+
+    const townSection = document.createElement("div");
+    townSection.className = "town-result";
+
+    const townHeader = document.createElement("h3");
+    townHeader.textContent = `Results for ${townNames[town] || town}`;
+    townSection.appendChild(townHeader);
+
+    const isEvergardenBalanced = town.toLowerCase() === "evergarden" && optimizationMethod === "balanced";
+    const caps = isEvergardenBalanced ? { green: 400, blue: 395, red: 394 } : { green: 1000, blue: 1000, red: 1000 };
+
+    const { totalScore, baseScore, varietyBonus } = calculateTotalScore(townResult.green, townResult.blue, townResult.red, caps);
+    const varietyBonusScore = baseScore * varietyBonus;
+
+    const scoreDetails = document.createElement("div");
+    scoreDetails.style.textAlign = 'left';
+    scoreDetails.style.paddingLeft = '20%';
+
+    scoreDetails.innerHTML = `
+      <p>
+        <strong>Green:</strong> ${townResult.green} <span style="color: green;">&#x1F49A;</span> |
+        <strong>Blue:</strong> ${townResult.blue} <span style="color: blue;">&#x1F499;</span> |
+        <strong>Red:</strong> ${townResult.red} <span style="color: red;">&#x1F497;</span>
+      </p>
+      <p>
+        <strong>Base Score:</strong> ${baseScore.toFixed(0)}<br>
+        <strong>Variety Bonus:</strong> ${(varietyBonus * 100).toFixed(1)}% (+${varietyBonusScore.toFixed(0)} points)<br>
+        <strong>Overall Score:</strong> <strong>${totalScore.toFixed(0)}</strong>
+      </p>
+    `;
+    townSection.appendChild(scoreDetails);
+
+    const decorationList = document.createElement("ul");
+    const decorationTotals: Record<string, number> = {};
+
+    townResult.decorations.forEach(
+      (decoration: { name: string; quantity: number }) => {
+        if (!decorationTotals[decoration.name]) {
+          decorationTotals[decoration.name] = 0;
+        }
+        decorationTotals[decoration.name] += decoration.quantity;
+      }
+    );
+
+    Object.entries(decorationTotals)
+      .sort(([nameA], [nameB]) => {
+        const inputOrder = Object.keys(decorationQuantities);
+        return inputOrder.indexOf(nameA) - inputOrder.indexOf(nameB);
+      })
+      .forEach(([name, total]) => {
+        const decoration = decorations.find((d) => d.name === name);
+        const greenTotal = (decoration?.green || 0) * total;
+        const blueTotal = (decoration?.blue || 0) * total;
+        const redTotal = (decoration?.red || 0) * total;
+
+        const listItem = document.createElement("li");
+        listItem.innerHTML = `${total}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
+        decorationList.appendChild(listItem);
+
+        if (town.toLowerCase() !== 'evergarden' && ['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
+          const hr = document.createElement('hr');
+          decorationList.appendChild(hr);
+        }
+      });
+
+    townSection.appendChild(decorationList);
+    resultsDiv.appendChild(townSection);
+  });
+
+  const unusedDecorations = decorations
+    .map(
+      (decoration: {
+        name: string;
+        green: number;
+        blue: number;
+        red: number;
+      }) => {
+        const usedQuantity = Object.values(results)
+          .flatMap(
+            (town: { decorations: { name: string; quantity: number }[] }) =>
+              town.decorations.filter(
+                (d: { name: string }) => d.name === decoration.name
+              )
+          )
+          .reduce(
+            (sum: number, d: { quantity: number }) => sum + d.quantity,
+            0
+          );
+        const totalQuantity = decorationQuantities[decoration.name] || 0;
+        const unusedQuantity = totalQuantity - usedQuantity;
+        return { ...decoration, unusedQuantity };
+      }
+    )
+    .filter(
+      (decoration: { unusedQuantity: number }) =>
+        decoration.unusedQuantity > 0
+    );
+
+  if (unusedDecorations.length > 0) {
+    const unusedSection = document.createElement("div");
+    unusedSection.className = "unused-decorations";
+
+    const unusedHeader = document.createElement("h3");
+    unusedHeader.textContent = "Unused Decorations:";
+    unusedSection.appendChild(unusedHeader);
+
+    const unusedList = document.createElement("ul");
+    unusedDecorations.forEach(
+      ({ name, green, blue, red, unusedQuantity }) => {
+        const listItem = document.createElement("li");
+        listItem.innerHTML = `${unusedQuantity}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${
+          green * unusedQuantity
+        }, <span style='color: blue;'>&#x1F499;</span> ${
+          blue * unusedQuantity
+        }, <span style='color: red;'>&#x1F497;</span> ${
+          red * unusedQuantity
+        })`;
+        unusedList.appendChild(listItem);
+
+        if (['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
+          const hr = document.createElement('hr');
+          unusedList.appendChild(hr);
+        }
+      }
+    );
+
+    unusedSection.appendChild(unusedList);
+    resultsDiv.appendChild(unusedSection);
+  }
 }

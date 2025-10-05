@@ -14,11 +14,30 @@ export function calculateVarietyBonus(green: number, blue: number, red: number):
   return bonus;
 }
 
+// Type definition for heart caps
+type Caps = {
+  green: number;
+  blue: number;
+  red: number;
+};
+
+// Type definition for score details
+type ScoreDetails = {
+  totalScore: number;
+  baseScore: number;
+  varietyBonus: number;
+};
+
 // Calculates the total score for a town, including the variety bonus.
-export function calculateTotalScore(green: number, blue: number, red: number): number {
-  // Base score is capped at 1000 per color.
-  const baseScore = Math.min(green, 1000) + Math.min(blue, 1000) + Math.min(red, 1000);
+export function calculateTotalScore(
+  green: number,
+  blue: number,
+  red: number,
+  caps: Caps = { green: 1000, blue: 1000, red: 1000 }
+): ScoreDetails {
+  // Base score is capped at the values provided in caps.
+  const baseScore = Math.min(green, caps.green) + Math.min(blue, caps.blue) + Math.min(red, caps.red);
   const varietyBonus = calculateVarietyBonus(green, blue, red);
   const totalScore = baseScore + (baseScore * varietyBonus);
-  return totalScore;
+  return { totalScore, baseScore, varietyBonus };
 }
