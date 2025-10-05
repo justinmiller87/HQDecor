@@ -422,6 +422,15 @@ export function setupInputForm() {
   });
 }
 
+function createDecorationListItem(name: string, quantity: number, green: number, blue: number, red: number): HTMLLIElement {
+  const listItem = document.createElement("li");
+  const greenTotal = green * quantity;
+  const blueTotal = blue * quantity;
+  const redTotal = red * quantity;
+  listItem.innerHTML = `${quantity}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
+  return listItem;
+}
+
 function renderResults(
   results: Record<string, any>,
   towns: string[],
@@ -508,13 +517,10 @@ function renderResults(
       })
       .forEach(([name, total]) => {
         const decoration = decorations.find((d) => d.name === name);
-        const greenTotal = (decoration?.green || 0) * total;
-        const blueTotal = (decoration?.blue || 0) * total;
-        const redTotal = (decoration?.red || 0) * total;
-
-        const listItem = document.createElement("li");
-        listItem.innerHTML = `${total}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
-        decorationList.appendChild(listItem);
+        if (decoration) {
+            const listItem = createDecorationListItem(name, total, decoration.green, decoration.blue, decoration.red);
+            decorationList.appendChild(listItem);
+        }
 
         if (town.toLowerCase() !== 'evergarden' && ['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
           const hr = document.createElement('hr');
@@ -528,12 +534,7 @@ function renderResults(
 
   const unusedDecorations = decorations
     .map(
-      (decoration: {
-        name: string;
-        green: number;
-        blue: number;
-        red: number;
-      }) => {
+      (decoration) => {
         const usedQuantity = Object.values(results)
           .flatMap(
             (town: { decorations: { name: string; quantity: number }[] }) =>
@@ -551,8 +552,7 @@ function renderResults(
       }
     )
     .filter(
-      (decoration: { unusedQuantity: number }) =>
-        decoration.unusedQuantity > 0
+      (decoration) => decoration.unusedQuantity > 0
     );
 
   if (unusedDecorations.length > 0) {
@@ -566,14 +566,7 @@ function renderResults(
     const unusedList = document.createElement("ul");
     unusedDecorations.forEach(
       ({ name, green, blue, red, unusedQuantity }) => {
-        const listItem = document.createElement("li");
-        listItem.innerHTML = `${unusedQuantity}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${
-          green * unusedQuantity
-        }, <span style='color: blue;'>&#x1F499;</span> ${
-          blue * unusedQuantity
-        }, <span style='color: red;'>&#x1F497;</span> ${
-          red * unusedQuantity
-        })`;
+        const listItem = createDecorationListItem(name, unusedQuantity, green, blue, red);
         unusedList.appendChild(listItem);
 
         if (['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
