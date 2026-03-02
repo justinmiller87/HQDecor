@@ -52,15 +52,15 @@ export function optimizeDecorations(
     decorationsWithQuantities.sort((a, b) => (b.green + b.blue + b.red) - (a.green + a.blue + a.red));
 
     decorationsWithQuantities.forEach((decoration) => {
-      if (isEvergarden && (decoration.category !== "Valhalla")) {
+      if (isEvergarden && !["Valhalla", "Trophies of Culture"].includes(decoration.category)) {
         return;
       }
 
       while (
         decoration.quantity > 0 &&
-        townResult.green + decoration.green <= 1000 &&
-        townResult.blue + decoration.blue <= 1000 &&
-        townResult.red + decoration.red <= 1000
+        townResult.green + decoration.green <= 1500 &&
+        townResult.blue + decoration.blue <= 1500 &&
+        townResult.red + decoration.red <= 1500
       ) {
         townResult.green += decoration.green;
         townResult.blue += decoration.blue;
@@ -85,7 +85,7 @@ export function optimizeDecorations(
     const allDecorations = decorationsData
       .filter(decoration => {
         if (isEvergarden) {
-          return decoration.category === 'Valhalla';
+          return ["Valhalla", "Trophies of Culture"].includes(decoration.category);
         }
         return true; // All decorations for other towns
       })
@@ -119,43 +119,43 @@ export function optimizeDecorationsBalanced(
   if (towns.includes("evergarden")) {
     const evergardenResult = results["evergarden"];
     const evergardenAllowedDecorations = decorationsData.filter(d =>
-        d.category === 'Valhalla'
+      ["Valhalla", "Trophies of Culture"].includes(d.category)
     );
 
     while (true) {
-        let bestPlacement: { decoration: Decoration; scoreIncrease: number } | null = null;
-        const currentScore = calculateTotalScore(evergardenResult.green, evergardenResult.blue, evergardenResult.red);
+      let bestPlacement: { decoration: Decoration; scoreIncrease: number } | null = null;
+      const currentScore = calculateTotalScore(evergardenResult.green, evergardenResult.blue, evergardenResult.red);
 
-        for (const decoration of evergardenAllowedDecorations) {
-            if (mutableQuantities[decoration.name] > 0) {
-                const newGreen = evergardenResult.green + decoration.green;
-                const newBlue = evergardenResult.blue + decoration.blue;
-                const newRed = evergardenResult.red + decoration.red;
-                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
-                const scoreIncrease = newScore - currentScore;
+      for (const decoration of evergardenAllowedDecorations) {
+        if (mutableQuantities[decoration.name] > 0) {
+          const newGreen = evergardenResult.green + decoration.green;
+          const newBlue = evergardenResult.blue + decoration.blue;
+          const newRed = evergardenResult.red + decoration.red;
+          const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+          const scoreIncrease = newScore - currentScore;
 
-                if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
-                    bestPlacement = { decoration, scoreIncrease };
-                }
-            }
+          if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
+            bestPlacement = { decoration, scoreIncrease };
+          }
         }
+      }
 
-        if (bestPlacement && bestPlacement.scoreIncrease > 0) {
-            const { decoration } = bestPlacement;
-            evergardenResult.green += decoration.green;
-            evergardenResult.blue += decoration.blue;
-            evergardenResult.red += decoration.red;
+      if (bestPlacement && bestPlacement.scoreIncrease > 0) {
+        const { decoration } = bestPlacement;
+        evergardenResult.green += decoration.green;
+        evergardenResult.blue += decoration.blue;
+        evergardenResult.red += decoration.red;
 
-            const existingDeco = evergardenResult.decorations.find((d: any) => d.name === decoration.name);
-            if (existingDeco) {
-                existingDeco.quantity++;
-            } else {
-                evergardenResult.decorations.push({ name: decoration.name, quantity: 1 });
-            }
-            mutableQuantities[decoration.name]--;
+        const existingDeco = evergardenResult.decorations.find((d: any) => d.name === decoration.name);
+        if (existingDeco) {
+          existingDeco.quantity++;
         } else {
-            break; // No more beneficial placements for Evergarden
+          evergardenResult.decorations.push({ name: decoration.name, quantity: 1 });
         }
+        mutableQuantities[decoration.name]--;
+      } else {
+        break; // No more beneficial placements for Evergarden
+      }
     }
   }
 
@@ -163,45 +163,45 @@ export function optimizeDecorationsBalanced(
   const otherTowns = towns.filter(t => t !== "evergarden");
   if (otherTowns.length > 0) {
     while (true) {
-        let bestPlacement: { town: string; decoration: Decoration; scoreIncrease: number } | null = null;
+      let bestPlacement: { town: string; decoration: Decoration; scoreIncrease: number } | null = null;
 
-        const availableDecoList = decorationsData.filter(d => mutableQuantities[d.name] > 0);
-        if (availableDecoList.length === 0) break;
+      const availableDecoList = decorationsData.filter(d => mutableQuantities[d.name] > 0);
+      if (availableDecoList.length === 0) break;
 
-        for (const town of otherTowns) {
-            const townResult = results[town];
-            const currentScore = calculateTotalScore(townResult.green, townResult.blue, townResult.red);
+      for (const town of otherTowns) {
+        const townResult = results[town];
+        const currentScore = calculateTotalScore(townResult.green, townResult.blue, townResult.red);
 
-            for (const decoration of availableDecoList) {
-                const newGreen = townResult.green + decoration.green;
-                const newBlue = townResult.blue + decoration.blue;
-                const newRed = townResult.red + decoration.red;
-                const newScore = calculateTotalScore(newGreen, newBlue, newRed);
-                const scoreIncrease = newScore - currentScore;
+        for (const decoration of availableDecoList) {
+          const newGreen = townResult.green + decoration.green;
+          const newBlue = townResult.blue + decoration.blue;
+          const newRed = townResult.red + decoration.red;
+          const newScore = calculateTotalScore(newGreen, newBlue, newRed);
+          const scoreIncrease = newScore - currentScore;
 
-                if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
-                    bestPlacement = { town, decoration, scoreIncrease };
-                }
-            }
+          if (!bestPlacement || scoreIncrease > bestPlacement.scoreIncrease) {
+            bestPlacement = { town, decoration, scoreIncrease };
+          }
         }
+      }
 
-        if (bestPlacement && bestPlacement.scoreIncrease > 0) {
-            const { town, decoration } = bestPlacement;
-            const townResult = results[town];
-            townResult.green += decoration.green;
-            townResult.blue += decoration.blue;
-            townResult.red += decoration.red;
+      if (bestPlacement && bestPlacement.scoreIncrease > 0) {
+        const { town, decoration } = bestPlacement;
+        const townResult = results[town];
+        townResult.green += decoration.green;
+        townResult.blue += decoration.blue;
+        townResult.red += decoration.red;
 
-            const existingDeco = townResult.decorations.find((d: any) => d.name === decoration.name);
-            if (existingDeco) {
-                existingDeco.quantity++;
-            } else {
-                townResult.decorations.push({ name: decoration.name, quantity: 1 });
-            }
-            mutableQuantities[decoration.name]--;
+        const existingDeco = townResult.decorations.find((d: any) => d.name === decoration.name);
+        if (existingDeco) {
+          existingDeco.quantity++;
         } else {
-            break; // No more beneficial placements found for any other town
+          townResult.decorations.push({ name: decoration.name, quantity: 1 });
         }
+        mutableQuantities[decoration.name]--;
+      } else {
+        break; // No more beneficial placements found for any other town
+      }
     }
   }
 
@@ -213,7 +213,7 @@ export function optimizeDecorationsBalanced(
     const allDecorations = decorationsData
       .filter(decoration => {
         if (isEvergarden) {
-          return decoration.category === 'Valhalla';
+          return ["Valhalla", "Trophies of Culture"].includes(decoration.category);
         }
         return true; // All decorations for other towns
       })

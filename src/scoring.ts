@@ -17,7 +17,7 @@ export function calculateVarietyBonus(green: number, blue: number, red: number):
 // Calculates the total score for a town, including the variety bonus.
 export function calculateTotalScore(green: number, blue: number, red: number): number {
   // Base score is capped at 1000 per color.
-  const baseScore = Math.min(green, 1000) + Math.min(blue, 1000) + Math.min(red, 1000);
+  const baseScore = Math.min(green, 1500) + Math.min(blue, 1500) + Math.min(red, 1500);
   const varietyBonus = calculateVarietyBonus(green, blue, red);
   const totalScore = baseScore + (baseScore * varietyBonus);
   return totalScore;

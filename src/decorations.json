@@ -133,6 +133,41 @@
     "red": 3
   },
   {
+    "name": "Marble Column",
+    "category": "Trophies of Culture",
+    "green": 0,
+    "blue": 2,
+    "red": 2
+  },
+  {
+    "name": "Bronze Statue",
+    "category": "Trophies of Culture",
+    "green": 2,
+    "blue": 0,
+    "red": 2
+  },
+  {
+    "name": "Silver Statue",
+    "category": "Trophies of Culture",
+    "green": 0,
+    "blue": 6,
+    "red": 6
+  },
+  {
+    "name": "Gold Statue",
+    "category": "Trophies of Culture",
+    "green": 7,
+    "blue": 7,
+    "red": 7
+  },
+  {
+    "name": "Fountain",
+    "category": "Trophies of Culture",
+    "green": 2,
+    "blue": 2,
+    "red": 0
+  },
+  {
     "name": "Theatre",
     "category": "Oracle",
     "green": 10,

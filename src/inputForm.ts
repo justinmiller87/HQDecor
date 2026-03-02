@@ -48,27 +48,34 @@ function exportToCsv(
   const headers = [
     "Decoration Name",
     "Category",
+    "Green",
+    "Blue",
+    "Red",
     "Unused",
     ...Object.keys(results),
   ];
 
   const rows = Object.entries(decorationQuantities).map(
     ([name, quantity]: [string, number]) => {
-      const category =
-        decorations.find(
-          (d: { name: string; category: string }) => d.name === name
-        )?.category || "";
+      const decoration = decorations.find(
+        (d: { name: string; category: string }) => d.name === name
+      );
+      const category = decoration?.category || "";
+      const green = (decoration as any)?.green || 0;
+      const blue = (decoration as any)?.blue || 0;
+      const red = (decoration as any)?.red || 0;
+
       const townQuantities = Object.keys(results).map((town: string) => {
         const townDecorations = results[town]?.decorations || [];
-        const decoration = townDecorations.find(
+        const decorationMatch = townDecorations.find(
           (d: { name: string; quantity: number }) => d.name === name
         );
-        return decoration ? decoration.quantity : 0;
+        return decorationMatch ? decorationMatch.quantity : 0;
       });
       const unused =
         quantity -
         townQuantities.reduce((sum: number, qty: number) => sum + qty, 0);
-      return [name, category, unused, ...townQuantities];
+      return [name, category, green, blue, red, unused, ...townQuantities];
     }
   );
 
@@ -110,8 +117,12 @@ function importData(file: File, callback: (data: any) => void) {
           );
           if (input) {
             let totalQuantity = 0;
-            Object.values(row).forEach((value) => {
-              if (!isNaN(Number(value))) {
+            Object.entries(row).forEach(([key, value]) => {
+              // Only sum numeric values that are NOT part of the decoration info or scores
+              if (
+                !["decoration_name", "category", "green", "blue", "red"].includes(key) &&
+                !isNaN(Number(value))
+              ) {
                 totalQuantity += Number(value);
               }
             });
@@ -146,17 +157,19 @@ function gatherExportData() {
       const townName =
         section.querySelector("h3")?.textContent?.replace("Results for ", "") ||
         "";
-      const decorations = Array.from(
-        section.querySelectorAll<HTMLLIElement>("li")
+      const decorationsUsed = Array.from(
+        section.querySelectorAll<HTMLLIElement>(".decoration-item")
       )
         .map((li) => {
-          const match = li.textContent?.match(/^(\d+)x (.+) \(/);
-          return match
-            ? { name: match[2], quantity: parseInt(match[1], 10) }
-            : null;
+          const nameSpan = li.querySelector(".item-name");
+          const qtySpan = li.querySelector(".item-qty");
+          if (nameSpan && qtySpan) {
+            return { name: nameSpan.textContent, quantity: parseInt(qtySpan.textContent || "0", 10) };
+          }
+          return null;
         })
         .filter(Boolean);
-      results[townName] = { decorations };
+      results[townName] = { decorations: decorationsUsed };
     });
   }
 
@@ -180,120 +193,123 @@ export function setupInputForm() {
 
   // Render the main form UI
   app.innerHTML = `
-  <header>
-  <img id="header" src="hq_logo.webp" alt="Home Quest Logo">
-    <h1>Home Quest Decoration Optimizer</h1>
+    <header>
+      <img id="header" src="hq_logo.webp" alt="Home Quest Logo">
+      <h1>Decoration Optimizer</h1>
+      <p style="color: var(--text-muted); font-size: 1.1rem; margin-top: 0.5rem;">Maximize your Town Hearts with ease</p>
     </header>
+
     <form id="decoration-form">
-      <div id="towns-container">
-        <h2>Select Unlocked Towns:</h2>
-        <div id="towns-inputs">
-          <p><label><input type="checkbox" id="select-all-towns"> Select All/None</label></p>
-          <p><label><input type="checkbox" class="town-checkbox" value="town1"> Town 1</label>
-          <label><input type="checkbox" class="town-checkbox" value="town2"> Town 2</label>
-          <label><input type="checkbox" class="town-checkbox" value="town3"> Town 3</label>
-          <label><input type="checkbox" class="town-checkbox" value="town4"> Town 4</label></p>
-          <p><label><input type="checkbox" class="town-checkbox" value="evergarden"> Evergarden</label></p>
-          <p><label><input type="checkbox" class="town-checkbox" value="northern1"> Northern Town 1</label>
-          <label><input type="checkbox" class="town-checkbox" value="northern2"> Northern Town 2</label>
-          <label><input type="checkbox" class="town-checkbox" value="northern3"> Northern Town 3</label></p>
-          <p><label><input type="checkbox" class="town-checkbox" value="southern1"> Southern Town 1</label>
-          <label><input type="checkbox" class="town-checkbox" value="southern2"> Southern Town 2</label>
-          <label><input type="checkbox" class="town-checkbox" value="southern3"> Southern Town 3</label></p>
-
+      <section class="card-section" id="towns-container">
+        <h2><span style="color: var(--accent-primary);">1.</span> Select Unlocked Towns</h2>
+        <div class="town-checkbox-wrapper" style="margin-bottom: 1rem; background: rgba(99, 102, 241, 0.1); border-color: rgba(99, 102, 241, 0.2);">
+          <input type="checkbox" id="select-all-towns">
+          <label for="select-all-towns">Select All / None</label>
         </div>
-      </div>
+        <div id="towns-inputs">
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="town1" id="town-town1"><label for="town-town1">Town 1</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="town2" id="town-town2"><label for="town-town2">Town 2</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="town3" id="town-town3"><label for="town-town3">Town 3</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="town4" id="town-town4"><label for="town-town4">Town 4</label></div>
+          
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="evergarden" id="town-evergarden"><label for="town-evergarden">Evergarden</label></div>
+          
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="northern1" id="town-northern1"><label for="town-northern1">Northern 1</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="northern2" id="town-northern2"><label for="town-northern2">Northern 2</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="northern3" id="town-northern3"><label for="town-northern3">Northern 3</label></div>
+          
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="southern1" id="town-southern1"><label for="town-southern1">Southern 1</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="southern2" id="town-southern2"><label for="town-southern2">Southern 2</label></div>
+          <div class="town-checkbox-wrapper"><input type="checkbox" class="town-checkbox" value="southern3" id="town-southern3"><label for="town-southern3">Southern 3</label></div>
+        </div>
+      </section>
 
-      <div id="decorations-container">
-      <p><button type="button" id="reset-values-top">Reset All Values</button></p>
-        <h2>Enter Decoration Quantities:</h2>
+      <section class="card-section" id="optimization-method-container">
+        <h2><span style="color: var(--accent-primary);">2.</span> Strategy</h2>
+        <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+          <label class="town-checkbox-wrapper" style="flex: 1;">
+            <input type="radio" name="optimization-method" value="maximum" checked>
+            <div>
+              <div style="font-weight: 700;">Maximum</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Highest possible score</div>
+            </div>
+          </label>
+          <label class="town-checkbox-wrapper" style="flex: 1;">
+            <input type="radio" name="optimization-method" value="balanced">
+            <div>
+              <div style="font-weight: 700;">Balanced</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">Even distribution</div>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <section class="card-section" id="decorations-container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+          <h2 style="margin: 0;"><span style="color: var(--accent-primary);">3.</span> Quantities</h2>
+          <button type="button" class="btn btn-danger" id="reset-values-top">Reset All</button>
+        </div>
         <div id="decoration-inputs">
           <!-- Inputs will be dynamically added here -->
         </div>
-      </div>
+      </section>
 
-      <div id="options-container">
-        <h2>Options:</h2>
-        <p><button type="button" id="reset-values-bottom">Reset All Values</button></p>
+      <div style="text-align: center; margin-bottom: 3rem;">
+        <button type="submit" class="btn btn-primary" style="padding: 1.2rem 3rem; font-size: 1.2rem; border-radius: 20px;">
+          🚀 Run Optimizer
+        </button>
       </div>
-      <h2>Run Tool:</h2>
-      <button type="submit">Optimize</button>
     </form>
-    <div id="results"></div>
-  `;
 
-  // Remove any old paste-list textarea if present
-  const pasteListTextarea =
-    document.querySelector<HTMLTextAreaElement>("#paste-list");
-  if (pasteListTextarea) pasteListTextarea.remove();
+    <div id="results"></div>
+
+    <section class="card-section" style="text-align: center;">
+      <h2 style="margin-bottom: 1.5rem;">Data Management</h2>
+      <div style="display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;">
+        <button id="export-csv" class="btn btn-secondary">📥 Export CSV</button>
+        <button id="import-csv" class="btn btn-secondary">📤 Import CSV</button>
+      </div>
+      <input type="file" id="import-file" style="display:none" />
+    </section>
+  `;
 
   // Set up select all/none for towns
-  const selectAllCheckbox =
-    document.querySelector<HTMLInputElement>("#select-all-towns")!;
-  const townCheckboxes =
-    document.querySelectorAll<HTMLInputElement>(".town-checkbox");
+  const selectAllCheckbox = document.querySelector<HTMLInputElement>("#select-all-towns")!;
+  const townCheckboxes = document.querySelectorAll<HTMLInputElement>(".town-checkbox");
 
   selectAllCheckbox.addEventListener("change", () => {
-    const isChecked = selectAllCheckbox.checked;
     townCheckboxes.forEach((checkbox) => {
-      checkbox.checked = isChecked;
+      checkbox.checked = selectAllCheckbox.checked;
     });
   });
 
-  // Assign unique ids and names to town checkboxes
+  // Assign names based on value
   townCheckboxes.forEach((checkbox) => {
-    const townName = checkbox.value;
-    checkbox.id = `town-${sanitizeId(townName)}`;
-    checkbox.name = `town-${sanitizeId(townName)}`;
+    checkbox.name = `town-${sanitizeId(checkbox.value)}`;
   });
 
-  // Get form and option elements
   const form = document.querySelector<HTMLFormElement>("#decoration-form")!;
-  const resetValuesTopButton =
-    document.querySelector<HTMLButtonElement>("#reset-values-top")!;
-  const resetValuesBottomButton = document.querySelector<HTMLButtonElement>(
-    "#reset-values-bottom"
-  )!;
+  const resetValuesTopButton = document.querySelector<HTMLButtonElement>("#reset-values-top")!;
 
-  // Reset all decoration input values to zero
   function resetAllDecorationInputs() {
-    const decorationInputs = document.querySelectorAll<HTMLInputElement>(
-      ".decoration-input-group input"
-    );
-    decorationInputs.forEach((input) => {
-      input.value = "0";
-    });
+    if (confirm("Are you sure you want to reset all quantities to zero?")) {
+      document.querySelectorAll<HTMLInputElement>(".decoration-input-group input").forEach((input) => {
+        input.value = "0";
+      });
+    }
   }
-
   resetValuesTopButton.addEventListener("click", resetAllDecorationInputs);
-  resetValuesBottomButton.addEventListener("click", resetAllDecorationInputs);
 
-  // Add radio buttons for optimization method selection
-  const optimizationMethodContainer = document.createElement("div");
-  optimizationMethodContainer.id = "optimization-method-container";
-  optimizationMethodContainer.innerHTML = `
-    <h2>Optimization Method:</h2>
-    <label><input type="radio" name="optimization-method" value="maximum" checked> Maximum</label>
-    <label><input type="radio" name="optimization-method" value="balanced"> Balanced</label>
-  `;
-  form.insertBefore(
-    optimizationMethodContainer,
-    form.querySelector("#options-container")
-  );
-
-  // Handle form submission and run optimization
+  // Handle form submission
   form.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    // Gather selected towns and decoration quantities
     const towns = Array.from(townCheckboxes)
       .filter((checkbox) => checkbox.checked)
       .map((checkbox) => checkbox.value);
 
     const decorationQuantities = Array.from(
-      document.querySelectorAll<HTMLInputElement>(
-        ".decoration-input-group input"
-      )
+      document.querySelectorAll<HTMLInputElement>(".decoration-input-group input")
     ).reduce((acc, input) => {
       acc[input.name] = parseInt(input.value, 10) || 0;
       return acc;
@@ -301,283 +317,173 @@ export function setupInputForm() {
 
     saveUserData(towns, decorationQuantities);
 
-    // Determine which optimization method to use
-    const selectedMethod =
-      document.querySelector<HTMLInputElement>(
-        "input[name='optimization-method']:checked"
-      )?.value || "maximum";
+    const selectedMethod = document.querySelector<HTMLInputElement>("input[name='optimization-method']:checked")?.value || "maximum";
 
     let results;
     if (selectedMethod === "balanced") {
-      results = optimizeDecorationsBalanced(
-        towns,
-        decorationQuantities
-      );
+      results = optimizeDecorationsBalanced(towns, decorationQuantities);
     } else {
-      results = optimizeDecorations(
-        towns,
-        decorationQuantities
-      );
+      results = optimizeDecorations(towns, decorationQuantities);
     }
 
-    // Render results for each town
     const resultsDiv = document.querySelector<HTMLDivElement>("#results")!;
-    resultsDiv.innerHTML = "";
+    resultsDiv.innerHTML = '<h2 style="text-align: center; margin-bottom: 2rem;">Optimized Layout</h2>';
 
     const townNames: Record<string, string> = {
-      town1: "Town 1",
-      town2: "Town 2",
-      town3: "Town 3",
-      town4: "Town 4",
-      northern1: "Northern Town 1",
-      northern2: "Northern Town 2",
-      northern3: "Northern Town 3",
+      town1: "Town 1", town2: "Town 2", town3: "Town 3", town4: "Town 4",
+      northern1: "Northern 1", northern2: "Northern 2", northern3: "Northern 3",
       evergarden: "Evergarden",
-      southern1: "Southern Town 1",
-      southern2: "Southern Town 2",
-      southern3: "Southern Town 3",
+      southern1: "Southern 1", southern2: "Southern 2", southern3: "Southern 3",
     };
 
     towns.forEach((town) => {
       const townResult = results[town];
+      if (!townResult || (townResult.green === 0 && townResult.blue === 0 && townResult.red === 0 && (!townResult.decorations || townResult.decorations.length === 0))) return;
 
-      // Skip towns with no decorations used
-      if (
-        !townResult ||
-        (townResult.green === 0 &&
-          townResult.blue === 0 &&
-          townResult.red === 0 &&
-          (!townResult.decorations || townResult.decorations.length === 0))
-      ) {
-        return;
-      }
-
-      // Create section for each town's results
       const townSection = document.createElement("div");
-      townSection.className = "town-result";
+      townSection.className = "card-section town-result";
 
       const townHeader = document.createElement("h3");
       townHeader.textContent = `Results for ${townNames[town] || town}`;
       townSection.appendChild(townHeader);
 
-      // Calculate and display detailed scores
-      const baseScore = Math.min(townResult.green, 1000) + Math.min(townResult.blue, 1000) + Math.min(townResult.red, 1000);
+      const baseScore = Math.min(townResult.green, 1500) + Math.min(townResult.blue, 1500) + Math.min(townResult.red, 1500);
       const varietyBonusPercentage = calculateVarietyBonus(townResult.green, townResult.blue, townResult.red);
       const varietyBonusScore = baseScore * varietyBonusPercentage;
       const overallScore = baseScore + varietyBonusScore;
 
-      const scoreDetails = document.createElement("div");
-      scoreDetails.style.textAlign = 'left';
-      scoreDetails.style.paddingLeft = '20%';
-
-
-      scoreDetails.innerHTML = `
-        <p>
-          <strong>Green:</strong> ${townResult.green} <span style="color: green;">&#x1F49A;</span> |
-          <strong>Blue:</strong> ${townResult.blue} <span style="color: blue;">&#x1F499;</span> |
-          <strong>Red:</strong> ${townResult.red} <span style="color: red;">&#x1F497;</span>
-        </p>
-        <p>
-          <strong>Base Score:</strong> ${baseScore.toFixed(0)}<br>
-          <strong>Variety Bonus:</strong> ${(varietyBonusPercentage * 100).toFixed(1)}% (+${varietyBonusScore.toFixed(0)} points)<br>
-          <strong>Overall Score:</strong> <strong>${overallScore.toFixed(0)}</strong>
-        </p>
+      townSection.innerHTML += `
+        <div class="overall-score-card">
+          <div style="margin-bottom: 1rem;">
+             <span class="score-badge green-badge">Green Hearts: ${townResult.green}</span>
+             <span class="score-badge blue-badge">Blue Hearts: ${townResult.blue}</span>
+             <span class="score-badge red-badge">Red Hearts: ${townResult.red}</span>
+          </div>
+          <div style="font-size: 1.1rem;">
+            <div>Base Score: <span style="font-weight: 700;">${baseScore.toFixed(0)}</span></div>
+            <div>Variety Bonus: <span style="font-weight: 700; color: var(--accent-primary);">+${(varietyBonusPercentage * 100).toFixed(1)}%</span> (+${varietyBonusScore.toFixed(0)} pts)</div>
+            <div style="font-size: 1.5rem; margin-top: 0.5rem;">Overall Score: <span style="color: var(--accent-primary); font-weight: 800;">${overallScore.toFixed(0)}</span></div>
+          </div>
+        </div>
       `;
-      townSection.appendChild(scoreDetails);
 
-      // List decorations used in the town
-      const decorationList = document.createElement("ul");
+      const decorationList = document.createElement("div");
+      decorationList.className = "decoration-list";
       const decorationTotals: Record<string, number> = {};
 
-      townResult.decorations.forEach(
-        (decoration: { name: string; quantity: number }) => {
-          if (!decorationTotals[decoration.name]) {
-            decorationTotals[decoration.name] = 0;
-          }
-          decorationTotals[decoration.name] += decoration.quantity;
-        }
-      );
+      townResult.decorations.forEach((decoration: { name: string; quantity: number }) => {
+        decorationTotals[decoration.name] = (decorationTotals[decoration.name] || 0) + decoration.quantity;
+      });
 
       Object.entries(decorationTotals)
-        .sort(([nameA], [nameB]) => {
-          const inputOrder = Object.keys(decorationQuantities);
-          return inputOrder.indexOf(nameA) - inputOrder.indexOf(nameB);
-        })
+        .sort(([nameA], [nameB]) => Object.keys(decorationQuantities).indexOf(nameA) - Object.keys(decorationQuantities).indexOf(nameB))
         .forEach(([name, total]) => {
           const decoration = decorations.find((d) => d.name === name);
-          const greenTotal = (decoration?.green || 0) * total;
-          const blueTotal = (decoration?.blue || 0) * total;
-          const redTotal = (decoration?.red || 0) * total;
-
-          const listItem = document.createElement("li");
-          listItem.innerHTML = `${total}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${greenTotal}, <span style='color: blue;'>&#x1F499;</span> ${blueTotal}, <span style='color: red;'>&#x1F497;</span> ${redTotal})`;
-          decorationList.appendChild(listItem);
-
-          if (town.toLowerCase() !== 'evergarden' && ['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
-            const hr = document.createElement('hr');
-            decorationList.appendChild(hr);
-          }
+          const item = document.createElement("div");
+          item.className = "decoration-item";
+          item.innerHTML = `
+            <div>
+              <span class="item-name" style="font-weight: 600;">${name}</span>
+              <div style="font-size: 0.75rem; color: var(--text-muted);">
+                <span style="color: var(--accent-green);">G:${(decoration?.green || 0) * total}</span>
+                <span style="color: var(--accent-blue);">B:${(decoration?.blue || 0) * total}</span>
+                <span style="color: var(--accent-red);">R:${(decoration?.red || 0) * total}</span>
+              </div>
+            </div>
+            <div style="background: var(--bg-card); padding: 0.2rem 0.6rem; border-radius: 8px; font-weight: 700;">
+              x<span class="item-qty">${total}</span>
+            </div>
+          `;
+          decorationList.appendChild(item);
         });
 
       townSection.appendChild(decorationList);
       resultsDiv.appendChild(townSection);
     });
 
-    // Show unused decorations
-    const unusedDecorations = decorations
-      .map(
-        (decoration: {
-          name: string;
-          green: number;
-          blue: number;
-          red: number;
-        }) => {
-          const usedQuantity = Object.values(results)
-            .flatMap(
-              (town: { decorations: { name: string; quantity: number }[] }) =>
-                town.decorations.filter(
-                  (d: { name: string }) => d.name === decoration.name
-                )
-            )
-            .reduce(
-              (sum: number, d: { quantity: number }) => sum + d.quantity,
-              0
-            );
-          const totalQuantity = decorationQuantities[decoration.name] || 0;
-          const unusedQuantity = totalQuantity - usedQuantity;
-          return { ...decoration, unusedQuantity };
-        }
-      )
-      .filter(
-        (decoration: { unusedQuantity: number }) =>
-          decoration.unusedQuantity > 0
-      );
+    // Unused (Always show)
+    const unusedDecorations = decorations.map(d => {
+      const used = Object.values(results).flatMap((t: any) => t.decorations.filter((du: any) => du.name === d.name)).reduce((s, du: any) => s + du.quantity, 0);
+      return { ...d, unused: (decorationQuantities[d.name] || 0) - used };
+    }).filter(d => d.unused > 0);
+
+    const unusedSection = document.createElement("div");
+    unusedSection.className = "card-section unused-decorations";
+    unusedSection.style.opacity = "0.7";
+    unusedSection.innerHTML = '<h3 style="margin-bottom: 1.5rem; color: var(--text-muted);">Remaining Decorations</h3>';
 
     if (unusedDecorations.length > 0) {
-      const unusedSection = document.createElement("div");
-      unusedSection.className = "unused-decorations";
+      const unusedList = document.createElement("div");
+      unusedList.className = "decoration-list";
 
-      const unusedHeader = document.createElement("h3");
-      unusedHeader.textContent = "Unused Decorations:";
-      unusedSection.appendChild(unusedHeader);
-
-      const unusedList = document.createElement("ul");
-      unusedDecorations.forEach(
-        ({ name, green, blue, red, unusedQuantity }) => {
-          const listItem = document.createElement("li");
-          listItem.innerHTML = `${unusedQuantity}x ${name} (<span style='color: green;'>&#x1F49A;</span> ${
-            green * unusedQuantity
-          }, <span style='color: blue;'>&#x1F499;</span> ${
-            blue * unusedQuantity
-          }, <span style='color: red;'>&#x1F497;</span> ${
-            red * unusedQuantity
-          })`;
-          unusedList.appendChild(listItem);
-
-          if (['Tree of Knowledge', 'Cozy Cabin', "Wizard's Staff"].includes(name)) {
-            const hr = document.createElement('hr');
-            unusedList.appendChild(hr);
-          }
-        }
-      );
-
+      unusedDecorations.forEach(d => {
+        const item = document.createElement("div");
+        item.className = "decoration-item";
+        item.innerHTML = `<span class="item-name">${d.name}</span> <span style="font-weight: 700;">x${d.unused}</span>`;
+        unusedList.appendChild(item);
+      });
       unusedSection.appendChild(unusedList);
-      resultsDiv.appendChild(unusedSection);
+    } else {
+      unusedSection.innerHTML += '<p style="color: var(--text-muted); font-style: italic;">None — all decorations have been placed.</p>';
     }
+    resultsDiv.appendChild(unusedSection);
+
+    // Smooth scroll to results
+    resultsDiv.scrollIntoView({ behavior: 'smooth' });
   });
 
-  // Dynamically render all decoration input fields
-  const decorationInputs =
-    document.querySelector<HTMLDivElement>("#decoration-inputs")!;
+  // Render decoration inputs
+  const decorationInputs = document.querySelector<HTMLDivElement>("#decoration-inputs")!;
   let currentCategory = "";
 
   decorations.forEach(({ name, category, green, blue, red }) => {
     if (category !== currentCategory) {
       currentCategory = category;
       const categoryHeader = document.createElement("h3");
+      categoryHeader.className = "category-title";
       categoryHeader.textContent = category;
       decorationInputs.appendChild(categoryHeader);
     }
 
     const inputGroup = document.createElement("div");
     inputGroup.className = "decoration-input-group";
-
-    const label = document.createElement("label");
-    label.innerHTML = `${name} (<span style='color: green;'>&#x1F49A;</span> ${green}, <span style='color: blue;'>&#x1F499;</span> ${blue}, <span style='color: red;'>&#x1F497;</span> ${red}):`;
-    label.htmlFor = `decoration-${sanitizeId(name)}`;
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.id = `decoration-${sanitizeId(name)}`;
-    input.name = name;
-    input.min = "0";
-    input.value = "0";
-
-    inputGroup.appendChild(label);
-    inputGroup.appendChild(input);
+    inputGroup.innerHTML = `
+      <label for="decoration-${sanitizeId(name)}">${name}</label>
+      <div style="display: flex; gap: 0.5rem; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">
+        <span style="color: var(--accent-green);">G:${green}</span>
+        <span style="color: var(--accent-blue);">B:${blue}</span>
+        <span style="color: var(--accent-red);">R:${red}</span>
+      </div>
+      <input type="number" id="decoration-${sanitizeId(name)}" name="${name}" min="0" value="0">
+    `;
     decorationInputs.appendChild(inputGroup);
   });
 
-  // Restore user data if available
+  // Restore data
   const userData = loadUserData();
   if (userData) {
     const { towns, decorationQuantities } = userData;
-
-    townCheckboxes.forEach((checkbox) => {
-      checkbox.checked = towns.includes(checkbox.value);
-    });
-
-    Object.entries(decorationQuantities).forEach(([name, quantity]) => {
-      const input = document.querySelector<HTMLInputElement>(
-        `#decoration-${sanitizeId(name)}`
-      );
-      if (input) {
-        input.value = (quantity as number).toString();
-      }
+    townCheckboxes.forEach(cb => cb.checked = towns.includes(cb.value));
+    Object.entries(decorationQuantities).forEach(([name, qty]) => {
+      const input = document.querySelector<HTMLInputElement>(`#decoration-${sanitizeId(name)}`);
+      if (input) input.value = (qty as number).toString();
     });
   }
 
-  // Add import/export section for CSV
-  const importExportSection = document.createElement("div");
-  importExportSection.innerHTML = `
-    <h2>Import/Export Data</h2>
-    <button id="export-csv">Export CSV</button>
-    <button id="import-csv">Import CSV</button>
-    <input type="file" id="import-file" style="display:none" />
-  `;
-  app.appendChild(importExportSection);
-
-  // Export CSV button handler
+  // Import/Export Handlers
   document.getElementById("export-csv")?.addEventListener("click", () => {
     const { decorationQuantities, results } = gatherExportData();
     exportToCsv(decorationQuantities, results, "HomeQuest-Decor-Export.csv");
   });
 
-  // Import CSV button handler
   document.getElementById("import-csv")?.addEventListener("click", () => {
-    const fileInput = document.getElementById(
-      "import-file"
-    ) as HTMLInputElement;
+    const fileInput = document.getElementById("import-file") as HTMLInputElement;
     fileInput.accept = ".csv";
     fileInput.onchange = () => {
       const file = fileInput.files?.[0];
       if (file) {
-        importData(file, (data) => {
-          data.forEach((row: any) => {
-            const name = row.decoration_name;
-            const input = document.querySelector<HTMLInputElement>(
-              `#decoration-${sanitizeId(name)}`
-            );
-            if (input) {
-              let totalQuantity = 0;
-              Object.entries(row).forEach(([_, value]) => {
-                if (!isNaN(Number(value))) {
-                  totalQuantity += Number(value);
-                }
-              });
-              input.value = totalQuantity.toString();
-            }
-          });
+        importData(file, () => {
+          // After import, the gatherData inside the callback should work, but for simplicity we rely on the input updates in importData
         });
       }
     };
